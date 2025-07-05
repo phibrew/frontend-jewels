@@ -1,59 +1,57 @@
-import React, { useEffect, useState } from 'react'
-import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import Homepage from './Pages/Homepage'
-import Layout from './Layouts/Layout'
-import SignIn from './Pages/SignIn'
-import UserProfile from './Pages/UserProfile'
-import VerifyOtpPage from './Pages/VerifyOtp'
-import Dashboard from './Pages/Dashboard'
-import useAuthStore from './store/AuthStore'
+import React, { useEffect, useState } from 'react';
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import Homepage from './Pages/Homepage';
+import Layout from './Layouts/Layout';
+import SignIn from './Pages/SignIn';
+import Protected from './Layouts/AuthLayout';
+import UserProfile from './Pages/UserProfile';
+import VerifyOtpPage from './Pages/VerifyOtp';
+import Dashboard from './Pages/Dashboard';
+import useAuthStore from './store/AuthStore';
+import GoogleCallback from './Pages/GoogleCallback';
+import AddProduct from './Pages/AddProduct';
 
 const App = () => {
-  const { user, setUser } = useAuthStore();
-  const navigate = useNavigate();
+  const loadUserFromStorage = useAuthStore(state => state.loadUserFromStorage);
+
   const [loading, setLoading] = useState(true);
-  const location = useLocation();
+
+  //Always run hooks first
+
   useEffect(() => {
-    const fetchUser = async()=>{
-      if(user){
-        setLoading(false);
-        return;
-      }
-      
-      try {
-          //first fetch the data 
-          const res = await fetch("http://localhost:8000/login", {
-              method: 'GET',
-              credentials: 'include',}
-          );
+  loadUserFromStorage();
+  setLoading(false); // whether or not success, loading must end
+}, []);
 
-          const data = await res.json();
-          if (res.ok && data?.user) {
-            setUser(data.user);
-          } else{
-            if (!location.pathname.startsWith('/signin') && !location.pathname.startsWith('/verify-otp')) {
-              navigate('/signin');
-            }
-          }
-      } catch (error) {
-          console.error("Error fetching user data:", error);
-      } finally {
-          setLoading(false);
-      }
-  };
-  fetchUser();
-  }, [user, setUser, navigate, location.pathname]);
+  //Now conditionally render based on loading and routes
+  if (loading) {
+    return <div className="text-center mt-10 text-xl">Loading...</div>;
+  }
+
   return (
-    <Layout>
-     <Routes>
-        <Route path='/' element={<Homepage />} />
-        <Route path="/signin" element={<SignIn /> } />
-        <Route path='/verify-otp' element={<VerifyOtpPage/>}/>
-        <Route path='/dashboard' element={<Dashboard/>}/>
-        <Route path='/:name' element={<UserProfile />} />
-      </Routes>
-    </Layout>
-  )
-}
+  <>
+    <Routes>
+      <Route path="/google-callback" element={<GoogleCallback />} />
+    </Routes>
 
-export default App
+    {loading ? (
+      <div className="text-center mt-10 text-xl">Loading...</div>
+      ) : (
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Homepage />} />
+            <Route path="/signin" element={<Protected authenticated={false}><SignIn /></Protected>} />
+            <Route path="/verify-otp" element={<Protected authenticated={false}><VerifyOtpPage /></Protected>} />
+            <Route path="/dashboard" element={<Protected authenticated={true}><Dashboard /></Protected>} />
+            <Route path="/:name" element={<Protected authenticated={true}><UserProfile /></Protected>} />
+            <Route path="/admin/add-product" element={<Protected authenticated={true}><AddProduct /></Protected>} />
+          </Routes>
+        </Layout>
+      )}
+    </>
+  );
+};
+
+
+
+export default App;
